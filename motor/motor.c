@@ -3,8 +3,7 @@
     TIM3 A6  A7 非重映像 电机1
     TIM8 C6  C7 非重映像 电机2
     TIM1 E9  E11 完全重映像 电机3
-    TIM4 D1
-    2 D13 完全重映像 电机4
+    TIM4 D12 D13 完全重映像 电机4
 PWM输出通道
     TIM2 B10 B11 pwmCH3 CH4 完全重映像 对应电机3、4pwm通道
     TIM5 A1 A2 pwmCH2 CH3 非重映像 对应电机1、2pwm通道
@@ -19,21 +18,22 @@ TIM4复用后：PD12 PD13 PD14 PD15无法使用
 TIM2复用后：PA15 PB3 PB10 PB11无法使用
 USART3复用后：PD9 PD10 PD11 PD12无法使用
 电机1正反转IO A3高 A4低
-电机2正反转IO C4高 C5低
-电机3正反转IO B0高 B1低
+电机2正反转IO C4低 C5高
+电机3正反转IO B0低 B1高
 电机4正反转IO F14高 F15低*/
 /*平均轮径=58.5125mm
 单周脉冲数=1320
-每脉冲前进=0.0443276mm*/
+每脉冲前进=0.0443276mm≈*/ //此数据已被测试为错误数据
 
 
 int16_t Temp1,Temp2,Temp3,Temp4;//接收编码器的计数值
 int16_t speed1 = 0,speed2=0,speed3 = 0,speed4 = 0;//电机pwm实际输出值
 int16_t target_speed1 = 0,target_speed2 = 0,target_speed3 = 0,target_speed4 = 0;//电机pwm目标值
-int16_t count_pulse1=0,count_pulse2=0,count_pulse3=0,count_pulse4=0;//脉冲数累加
-int16_t average_count_pulse = 0;
-
-
+float count_pulse1=0.0,count_pulse2=0.0,count_pulse3=0.0,count_pulse4=0.0;//脉冲数累加
+float average_count_pulse = 0.0;//脉冲平均值
+float Last_count_pulse1=0.0,Last_count_pulse2=0.0,Last_count_pulse3=0.0,Last_count_pulse4=0.0;//上一次脉冲值
+//初始方向设置标志位
+uint8_t Init_motor1_direction_flag = 0,Init_motor2_direction_flag = 0,Init_motor3_direction_flag = 0,Init_motor4_direction_flag = 0;
 
 void timer6(void)//初始化基本定时器
 {
@@ -42,7 +42,7 @@ void timer6(void)//初始化基本定时器
     TIM_TimeBaseInitStructure.TIM_ClockDivision = TIM_CKD_DIV1;
     TIM_TimeBaseInitStructure.TIM_CounterMode = TIM_CounterMode_Up;
     TIM_TimeBaseInitStructure.TIM_Period = (1000-1);
-    TIM_TimeBaseInitStructure.TIM_Prescaler = (3600-1);//100ms一次中断
+    TIM_TimeBaseInitStructure.TIM_Prescaler = (3600-1);//50ms一次中断
     TIM_TimeBaseInitStructure.TIM_RepetitionCounter = 0;
     TIM_TimeBaseInit(TIM6,&TIM_TimeBaseInitStructure);
     TIM_InternalClockConfig(TIM2);
@@ -79,17 +79,18 @@ void timer6(void)//初始化基本定时器
 //     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);//中断分组
 
 //     NVIC_InitTypeDef NVIC_InitStructure;
-//     NVIC_InitStructure.NVIC_IRQChannel = TIM6_IRQn;
+//     NVIC_InitStructure.NVIC_IRQChannel = TIM7_IRQn;
 //     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-//     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 2;//抢占优先级2
-//     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;//响应优先级1
+//     NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 4;//抢占优先级2
+//     NVIC_InitStructure.NVIC_IRQChannelSubPriority = 4;//响应优先级1
 //     NVIC_Init(&NVIC_InitStructure);
 
 //     TIM_Cmd(TIM7,ENABLE);
 // }
 
 
-//初始化4个编码器
+
+//****************************************************************初始化4个编码器
 void Encoder1(void)//TIM3，编码器1
 {
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3,ENABLE);//1开启时钟
@@ -164,7 +165,7 @@ void Encoder2(void)//用TIM8
     TIM_ICInit(TIM8,&TIM_ICInitStructure);
     
     //配置编码器
-    TIM_EncoderInterfaceConfig(TIM8,TIM_EncoderMode_TI12,TIM_ICPolarity_Rising,TIM_ICPolarity_Rising);//其实就是都不反向。若要调节，可在此处调节极性方向
+    TIM_EncoderInterfaceConfig(TIM8,TIM_EncoderMode_TI12,TIM_ICPolarity_Rising,TIM_ICPolarity_Falling);//其实就是都不反向。若要调节，可在此处调节极性方向
 
     TIM_Cmd(TIM8,ENABLE);
 
@@ -251,16 +252,16 @@ void Encoder4(void)//用TIM4
     TIM_ICInit(TIM4,&TIM_ICInitStructure);
     
     //配置编码器
-    TIM_EncoderInterfaceConfig(TIM4,TIM_EncoderMode_TI12,TIM_ICPolarity_Rising,TIM_ICPolarity_Rising);//其实就是都不反向。若要调节，可在此处调节极性方向
+    TIM_EncoderInterfaceConfig(TIM4,TIM_EncoderMode_TI12,TIM_ICPolarity_Rising,TIM_ICPolarity_Falling);//其实就是都不反向。若要调节，可在此处调节极性方向
 
     TIM_Cmd(TIM4,ENABLE);
 }
-
+//****************************************************************************
 int16_t Encoder1_Get(void)
 {
     int16_t temp;
     temp = TIM_GetCounter(TIM3);
-    count_pulse1 = count_pulse1+temp;
+    count_pulse1 = count_pulse1+abs(temp);
     TIM_SetCounter(TIM3,0);//清空cnt
     return temp;
 }
@@ -268,7 +269,7 @@ int16_t Encoder2_Get(void)
 {
     int16_t temp;
     temp = TIM_GetCounter(TIM8);
-    count_pulse2 = count_pulse2+temp;
+    count_pulse2 = count_pulse2+abs(temp);
     TIM_SetCounter(TIM8,0);//清空cnt
     return temp;
 }
@@ -276,7 +277,7 @@ int16_t Encoder3_Get(void)
 {
     int16_t temp;
     temp = TIM_GetCounter(TIM1);
-    count_pulse3 = count_pulse3+temp;
+    count_pulse3 = count_pulse3+abs(temp);
     TIM_SetCounter(TIM1,0);//清空cnt
     return temp;
 }
@@ -284,7 +285,7 @@ int16_t Encoder4_Get(void)
 {
     int16_t temp;
     temp = TIM_GetCounter(TIM4);
-    count_pulse4 = count_pulse4+temp;
+    count_pulse4 = count_pulse4+abs(temp);
     TIM_SetCounter(TIM4,0);//清空cnt
     return temp;
 }
@@ -305,7 +306,7 @@ void pwm_TIM5(int16_t PwmParameter)//1KHZ占空比100%
 	TIM_TimeBaseInitStructure.TIM_ClockDivision = TIM_CKD_DIV1;
 	TIM_TimeBaseInitStructure.TIM_CounterMode = TIM_CounterMode_Up;
 	TIM_TimeBaseInitStructure.TIM_Period = (1000-1);   //ARR
-	TIM_TimeBaseInitStructure.TIM_Prescaler = (36-1);   //PSC
+	TIM_TimeBaseInitStructure.TIM_Prescaler = (72-1);   //PSC
 	TIM_TimeBaseInitStructure.TIM_RepetitionCounter = 0;//未设置
 	TIM_TimeBaseInit(TIM5,&TIM_TimeBaseInitStructure);
 
@@ -340,7 +341,7 @@ void pwm_TIM2(int16_t PwmParameter)
 	TIM_TimeBaseInitStructure.TIM_ClockDivision = TIM_CKD_DIV1;
 	TIM_TimeBaseInitStructure.TIM_CounterMode = TIM_CounterMode_Up;
 	TIM_TimeBaseInitStructure.TIM_Period = (1000-1);   //未设置ARR
-	TIM_TimeBaseInitStructure.TIM_Prescaler = (36-1);   //未设置PSC
+	TIM_TimeBaseInitStructure.TIM_Prescaler = (72-1);   //未设置PSC
 	TIM_TimeBaseInitStructure.TIM_RepetitionCounter = 0;//未设置
 	TIM_TimeBaseInit(TIM2,&TIM_TimeBaseInitStructure);
 
@@ -403,51 +404,94 @@ void motor_Init(void)
     
 }
 
-void electric_machinery_direction_control(uint8_t motor1,uint8_t motor2,uint8_t motor3,uint8_t motor4)//电机转向调节，0正转，1反转
+void motor1_direction_control(uint8_t direction)
 {
-	if(motor1==Reverse)
+    Init_motor1_direction_flag = direction;
+	if(direction==Forward_direction)
 	{
 		GPIO_SetBits(GPIOA,GPIO_Pin_3);
 		GPIO_ResetBits(GPIOA,GPIO_Pin_4);
 	}
-	else if(motor1==Forward_direction)
+	else if(direction==Reverse)
 	{
 		GPIO_SetBits(GPIOA,GPIO_Pin_4);//正负极反转
 		GPIO_ResetBits(GPIOA,GPIO_Pin_3);
 	}
-    
-	if(motor2==Forward_direction)
+    else
+    {
+        GPIO_ResetBits(GPIOA,GPIO_Pin_3);
+		GPIO_ResetBits(GPIOA,GPIO_Pin_4);
+    }
+
+}
+
+void motor2_direction_control(uint8_t direction)
+{
+    Init_motor2_direction_flag = direction;
+	if(direction==Forward_direction)
 	{
 		GPIO_SetBits(GPIOC,GPIO_Pin_4);
 		GPIO_ResetBits(GPIOC,GPIO_Pin_5);
 	}
-	else if(motor2==Reverse)
+	else if(direction==Reverse)
 	{
 		GPIO_SetBits(GPIOC,GPIO_Pin_5);
 		GPIO_ResetBits(GPIOC,GPIO_Pin_4);
-	}
-	
-	if(motor3==Reverse)
+	}   
+    else
+    {
+		GPIO_ResetBits(GPIOC,GPIO_Pin_5);
+		GPIO_ResetBits(GPIOC,GPIO_Pin_4);
+    }
+}
+
+void motor3_direction_control(uint8_t direction)
+{
+    Init_motor3_direction_flag = direction;
+    if(direction==Forward_direction)
 	{
 		GPIO_SetBits(GPIOB,GPIO_Pin_0);
 		GPIO_ResetBits(GPIOB,GPIO_Pin_1);
 	}
-	else if(motor3==Forward_direction)
+	else if(direction==Reverse)
 	{
 		GPIO_SetBits(GPIOB,GPIO_Pin_1);
 		GPIO_ResetBits(GPIOB,GPIO_Pin_0);
 	}
-	
-	if(motor4==Forward_direction)
+    else
+    {
+		GPIO_ResetBits(GPIOB,GPIO_Pin_1);
+		GPIO_ResetBits(GPIOB,GPIO_Pin_0);
+    }
+}
+
+void motor4_direction_control(uint8_t direction)
+{
+    Init_motor4_direction_flag = direction;
+	if(direction==Forward_direction)
 	{
 		GPIO_SetBits(GPIOF,GPIO_Pin_14);
 		GPIO_ResetBits(GPIOF,GPIO_Pin_15);
 	}
-	else if(motor4==Reverse)
+	else if(direction==Reverse)
 	{
 		GPIO_SetBits(GPIOF,GPIO_Pin_15);
 		GPIO_ResetBits(GPIOF,GPIO_Pin_14);
 	}
+    else
+    {
+        GPIO_ResetBits(GPIOF,GPIO_Pin_15);
+		GPIO_ResetBits(GPIOF,GPIO_Pin_14);
+    }
+}
+
+void electric_machinery_direction_control(uint8_t motor1,uint8_t motor2,uint8_t motor3,uint8_t motor4)//电机转向调节，0正转，1反转
+{
+
+    motor1_direction_control(motor1);
+    motor2_direction_control(motor2);
+    motor3_direction_control(motor3);
+    motor4_direction_control(motor4);
 }
 
 //四个电机的pwm控制
@@ -484,20 +528,28 @@ void motor_control_all(int16_t speed_all_1,int16_t speed_all_2,int16_t speed_all
     motor4_pwm_contorl(speed_all_4);
 }
 
-int16_t Pulse_Distance_conversion(float mm)//换算长度为总脉冲数
+float Pulse_Distance_conversion(float mm)//换算长度为总脉冲数
 {
     float true_length;
     true_length = mm/Pulse_conversion_coefficient;
     return true_length;
 }
 
+float Angle_conversion(float angle)
+{
+    return (angle*Angle_conversion_parameters);
+}
 
+float Centimeter_conversion_transverse(float cm)
+{
+    return (cm*Centimeter_conversion_parameter_transverse);
+}
 float Wit_Read_datapacket(void)
 {
     int i;
 
-     WitReadReg(Yaw, 1);
-		// CmdProcess();
+     WitReadReg(Roll, 3);
+		//mdProcess();
 		if (s_cDataUpdate)
 		{
 			for (i = 0; i < 3; i++)
@@ -506,15 +558,30 @@ float Wit_Read_datapacket(void)
 				// fGyro[i] = sReg[GX + i] / 32768.0f * 2000.0f;
 				fAngle[2] = sReg[Roll + 2] / 32768.0f * 180.0f;
 			}
-			if (s_cDataUpdate & ANGLE_UPDATE)
+            if (s_cDataUpdate & ACC_UPDATE)
 			{
-                // UART1_Printf("%.3f    ",fAngle[2]);
+				//printf("acc:%.3f %.3f %.3f\r\n", fAcc[0], fAcc[1], fAcc[2]);
+				s_cDataUpdate &= ~ACC_UPDATE;
+			}
+			if (s_cDataUpdate & GYRO_UPDATE)
+			{
+				//printf("gyro:%.3f %.3f %.3f\r\n", fGyro[0], fGyro[1], fGyro[2]);
+				s_cDataUpdate &= ~GYRO_UPDATE;
+			}
+			if (s_cDataUpdate & ANGLE_UPDATE)
+			{UART1_Printf("%.3f %.3f\r\n",fAngle[2],Init_angle);
                 if(fAngle[2]<0)
                 {
                     fAngle[2] = 180.0+(180.0-(-fAngle[2]));
                 }
-				// UART1_Printf("angle:%.3f\r\n", fAngle[2]);
+                
 				s_cDataUpdate &= ~ANGLE_UPDATE;
+                
+			}
+            if (s_cDataUpdate & MAG_UPDATE)
+			{
+				//printf("mag:%d %d %d\r\n", sReg[HX], sReg[HY], sReg[HZ]);
+				s_cDataUpdate &= ~MAG_UPDATE;
 			}
 		}
         return fAngle[2];
@@ -539,11 +606,6 @@ void CopeCmdData(unsigned char ucData)
 		if ((s_ucData[1] == '\r') && (s_ucData[2] == '\n'))
 		{
 			s_cCmd = s_ucData[0];
-
-
-
-
-			
 			memset(s_ucData, 0, 50);
 			s_ucRxCnt = 0;
 		}
@@ -687,7 +749,13 @@ void TIM6_IRQHandler(void)//读取速度数据、修改占空比中断函数
         Temp1 = Encoder1_Get();
         Temp2 = Encoder2_Get();
         Temp3 = Encoder3_Get();
-        Temp4 = Encoder4_Get();//读取脉冲数
+        Temp4 = Encoder4_Get();//读取脉冲数);
+        if(!((count_pulse1==Last_count_pulse1)||(count_pulse2==Last_count_pulse2)||
+        (count_pulse3==Last_count_pulse3)||(count_pulse4==Last_count_pulse4)))
+        {//计算当前已行驶距离的平均值
+            average_count_pulse = ((count_pulse1+count_pulse2+count_pulse3+count_pulse4)/4.0);
+        }
+        Last_count_pulse1 = count_pulse1,Last_count_pulse2 = count_pulse2,Last_count_pulse3 = count_pulse3,Last_count_pulse4 = count_pulse4;
         Temp1 = Temp1*pwm_Speed_proportion;
         Temp2 = Temp2*pwm_Speed_proportion;
         Temp3 = Temp3*pwm_Speed_proportion;
@@ -696,7 +764,6 @@ void TIM6_IRQHandler(void)//读取速度数据、修改占空比中断函数
         speed2 = pid_motor_2_out(abs(Temp2),target_speed2);
         speed3 = pid_motor_3_out(abs(Temp3),target_speed3);
         speed4 = pid_motor_4_out(abs(Temp4),target_speed4);//修改占空比
-        average_count_pulse = ((count_pulse1+count_pulse2+count_pulse3+count_pulse4)/4);
         motor_control_all(speed1,speed2,speed3,speed4);
         TIM_ClearITPendingBit(TIM6,TIM_IT_Update);
     }
@@ -711,5 +778,6 @@ void TIM6_IRQHandler(void)//读取速度数据、修改占空比中断函数
 //     }
 
 // }
+
 
 

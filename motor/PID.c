@@ -50,17 +50,28 @@ int16_t pid_motor_1_out(float currect,float target)//当前值、设定值设定
         pid_motor_1.pwm += (pid_motor_1.kp*(pid_motor_1.err-pid_motor_1.last_err))+(pid_motor_1.ki*pid_motor_1.err)+(pid_motor_1.kd*(pid_motor_1.err-(2*pid_motor_1.last_err)+pid_motor_1.last_last_err));
         pid_motor_1.last_last_err = pid_motor_1.last_err;
         pid_motor_1.last_err = pid_motor_1.err;//将本次偏差传递到上次偏差，上次偏差传递到上上次偏差。
-        // return pid_motor_1.pwm;
+        //return pid_motor_1.pwm;
     }
+
     if(pid_motor_1.pwm>=1000)//限制最大值
     {
         pid_motor_1.pwm = 1000;
     }
-    else if(pid_motor_1.pwm<=0)
+    else if(pid_motor_1.pwm<0)
     {
-        pid_motor_1.pwm = 0;//限制最小值
+        motor1_direction_control(!Init_motor1_direction_flag);
+        //pid_motor_1.pwm = pid_motor_1.pwm*1.1;
+        
     }
-    return pid_motor_1.pwm;
+    else if(target==0&&Temp1==0)//
+    {
+        speed1 = 0;
+    }
+    else 
+    {
+        motor1_direction_control(Init_motor1_direction_flag);
+    }
+    return abs(pid_motor_1.pwm);
 }
 
 int16_t pid_motor_2_out(float currect,float target)//当前值、设定值，设定电机2的PID
@@ -73,15 +84,25 @@ int16_t pid_motor_2_out(float currect,float target)//当前值、设定值，设
         pid_motor_2.last_err = pid_motor_2.err;//计算完成，将本次偏差传递到上次偏差，上次偏差传递到上上次偏差。
         // return pid_motor_2.pwm;
     }
+
     if(pid_motor_2.pwm>=1000)//限制最大值
     {
         pid_motor_2.pwm = 1000;
     }
-    else if(pid_motor_2.pwm<=0)
+    else if(pid_motor_2.pwm<0)
     {
-        pid_motor_2.pwm = 0;//限制最小值
+        motor2_direction_control(!Init_motor2_direction_flag);
+        //pid_motor_2.pwm = pid_motor_2.pwm*1.1;
     }
-    return pid_motor_2.pwm;
+    else if(target==0&&Temp2==0)//
+    {
+        speed2 = 0;
+    }
+    else
+    {
+        motor2_direction_control(Init_motor2_direction_flag);
+    }
+    return abs(pid_motor_2.pwm);
 }
 
 int16_t pid_motor_3_out(float currect,float target)//当前值、设定值设定电机1的PID
@@ -99,12 +120,24 @@ int16_t pid_motor_3_out(float currect,float target)//当前值、设定值设定
     {
         pid_motor_3.pwm = 1000;
     }
-    else if(pid_motor_3.pwm<=0)
+    else if(pid_motor_3.pwm<0)
     {
-        pid_motor_3.pwm = 0;//限制最小值
+        motor3_direction_control(!Init_motor3_direction_flag);
+        //pid_motor_3.pwm = pid_motor_3.pwm*1.1;
+        //pid_motor_3.pwm = 0;
     }
-    return pid_motor_3.pwm;
+    else if(target==0&&Temp3==0)//
+    {
+        speed3 = 0;
+    }
+    else
+    {
+        motor3_direction_control(Init_motor3_direction_flag);
+    }
+    return abs(pid_motor_3.pwm);
 }
+
+
 
 int16_t pid_motor_4_out(float currect,float target)//当前值、设定值设定电机1的PID
 {
@@ -120,9 +153,18 @@ int16_t pid_motor_4_out(float currect,float target)//当前值、设定值设定
     {
         pid_motor_4.pwm = 1000;
     }
-    else if(pid_motor_4.pwm<=0)
+    else if(pid_motor_4.pwm<0)
     {
-        pid_motor_4.pwm = 0;//限制最小值
+        motor4_direction_control(!Init_motor4_direction_flag);
+        //pid_motor_4.pwm = pid_motor_4.pwm*1.1;
     }
-    return pid_motor_4.pwm;
+    else if(target==0&&Temp4==0)//
+    {
+        speed4 = 0;
+    }
+    else
+    {
+        motor4_direction_control(Init_motor4_direction_flag);
+    }
+    return abs(pid_motor_4.pwm);
 }

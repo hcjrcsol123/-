@@ -3,9 +3,9 @@
 // #include "stdlib.h"
 
 #include "MOTORandMOVE.h"
-#define pid_kp 1.0
-#define pid_ki 0.3
-#define pid_kd 0.15
+#define pid_kp 0.9
+#define pid_ki 0.2
+#define pid_kd 0.1
 struct pid
 {
     float err;//上次偏差

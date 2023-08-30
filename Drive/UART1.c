@@ -6,9 +6,12 @@
 #include "misc.h"
 #include "UART1.h"
 #include <stdarg.h>
-uint8_t RX_datapactet[5] = {0};
+#include "string.h"
+#include "MOTORandMOVE.h"
+uint8_t RX_datapacket[5] = {0};
 uint8_t RX_data = 0;
 uint8_t Storage_Packet[5] = {0};
+uint8_t TX_datapacket[5]={0xff,0xff,0xff,0xff,0xff};
 void Usart1Init(unsigned int uiBaud)
 {
  	GPIO_InitTypeDef GPIO_InitStructure;
@@ -27,8 +30,8 @@ void Usart1Init(unsigned int uiBaud)
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 	  
 	NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority=3 ;
-	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 3;		
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority=0 ;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;		
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;			
 	NVIC_Init(&NVIC_InitStructure);	
 	
@@ -76,7 +79,12 @@ void UART1_SendString(char *String)
 	}
 }
 
-
+void UART1_send_datapacket(void)
+{
+	UART1_SendByte(0xff);
+	UART1_SendArray(TX_datapacket,5);
+	UART1_SendByte(0xfe);
+}
 
 int fputc(int ch, FILE *file)
 {
@@ -97,17 +105,69 @@ void UART1_Printf(char *format, ...)
 	UART1_SendString(String);
 }
 
+void TX_datapacket_assignment(uint8_t data1,uint8_t data2,uint8_t data3,uint8_t data4,uint8_t data5)
+{
+	TX_datapacket[0] = data1;
+	TX_datapacket[1] = data2;
+	TX_datapacket[2] = data3;
+	TX_datapacket[3] = data4;
+	TX_datapacket[4] = data5;
+}
+
 
 void CopeCmdData(unsigned char ucData);
 void USART1_IRQHandler(void)
 {
-	unsigned char ucTemp;
-	if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
+	static uint8_t i= 0;
+	static uint8_t RxState = 0;
+	static uint8_t pRxPacket = 0;
+	if (USART_GetITStatus(USART1, USART_IT_RXNE) == SET)
 	{
-		ucTemp = USART_ReceiveData(USART1);
-		CopeCmdData(ucTemp);
+		uint8_t RxData = USART_ReceiveData(USART1);
+		
+		if (RxState == 0)
+		{
+			if (RxData == 0xFF)
+			{
+				RxState = 1;
+				pRxPacket = 0;
+			}
+		}
+		else if (RxState == 1)
+		{
+			RX_datapacket[pRxPacket] = RxData;
+			pRxPacket ++;
+			if (pRxPacket > 4)
+			{
+				RxState = 2;
+			}
+		}
+		else if (RxState == 2)
+		{
+			if (RxData == 0xFE)
+			{
+				RxState = 0;
+                for(i=0;i<5;i++)
+				{
+					Storage_Packet[i] = RX_datapacket[i];
+				}
+				i = 0;
+				if(Storage_Packet[4]!=0xfc)
+				{
+					lateral_movement_lenght = Centimeter_conversion_transverse(Storage_Packet[2]);
+					fine_tune_Flag = 1;
+				}
+			}
+		}
 		USART_ClearITPendingBit(USART1, USART_IT_RXNE);
 	}
-	USART_ClearITPendingBit(USART2,USART_IT_ORE);
 }
+	// unsigned char ucTemp;
+	// if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
+	// {
+	// 	ucTemp = USART_ReceiveData(USART1);
+	// 	CopeCmdData(ucTemp);
+	// 	USART_ClearITPendingBit(USART1, USART_IT_RXNE);
+	// }
+	// USART_ClearITPendingBit(USART2,USART_IT_ORE);
 

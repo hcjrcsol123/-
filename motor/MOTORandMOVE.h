@@ -4,7 +4,6 @@
 #include "motor.h"
 #include "PID.h"
 #include "Delay.h"
-#include "USART.h"
 #include "stdlib.h"
 #include "move.h"
 // #include "OLED.h"
@@ -26,5 +25,6 @@
 #define READ_UPDATE  0x80
 extern volatile char s_cDataUpdate, s_cCmd;
 extern float fAcc[3], fGyro[3], fAngle[3];
+extern float Init_angle;//最初始方向角
 
 #endif
