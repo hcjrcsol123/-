@@ -2,7 +2,8 @@
 #define _MOVE_H
 #include "MOTORandMOVE.h"
 
-
+#define positive_direction 1.0
+#define negative_direction -1.0
 
 #define Pan_Over 0xfd//单次平移行为完成
 #define Fine_tuning_stop 0xfc
@@ -32,13 +33,18 @@ extern float lateral_movement_lenght;
 
 
 //转过指定角度
+void Turn_Angle_gyro(uint8_t order,int16_t speed,float angle);
+void Turn_Angle_gyro_colour(uint8_t order,int16_t speed,float angle,uint8_t colour);
 void Turn_Angle(uint8_t order,int16_t speed,float angle);
+//转动指定时间
+void Turn_Angle_Delay_time(uint8_t order,int16_t speed,float dir,uint16_t time);
 //前进指定距离
 void move_front_step(uint8_t order,uint16_t Input_length,int16_t speed,float Init_Angle,uint8_t instruction);
+void move_front_step_colour(uint8_t order,uint8_t colour,uint16_t Input_length,int16_t speed,float Init_Angle,uint8_t instruction);
 //后退指定距离
 void move_back_step(uint8_t order,uint16_t Input_length,int16_t speed,float Init_Angle,uint8_t instruction);
 //左移指定距离
-void move_left_step(uint8_t order,uint16_t Input_length,int16_t speed,float Init_Angle);
+void move_left_step(uint8_t order,uint16_t Input_length,int16_t speed);//,float Init_Angle
 //右移指定距离
 void move_right_step(uint8_t order,uint16_t Input_length,int16_t speed,float Init_Angle);
 //左移或右移串口接收到的指定距离

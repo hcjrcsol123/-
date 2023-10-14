@@ -26,5 +26,7 @@
 extern volatile char s_cDataUpdate, s_cCmd;
 extern float fAcc[3], fGyro[3], fAngle[3];
 extern float Init_angle;//最初始方向角
-
+extern uint8_t colour_Flag;
+enum step_auto{step_auto_start,step_auto_Boundary,step_auto_stop,step_autp_count = 2,
+            Forward_auto_0 = 0xff-5,Forward_auto_1,Forward_auto_2,Forward_auto_3,Forward_auto_4,Forward_auto_5};
 #endif

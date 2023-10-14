@@ -9,6 +9,7 @@ PWM输出通道
     TIM5 A1 A2 pwmCH2 CH3 非重映像 对应电机1、2pwm通道
 串口中断
     USART3 C10 C11 部分重映像
+    USART1 A9 10 非重映像
 定时中断
     TIM6 接收编码器数值并调整pwm。
     TIM7(待定)
@@ -17,10 +18,10 @@ TIM1复用后：PE7 PE9 PE11 PE13 PE14 PE15 PE8 PE10 PE12无法使用
 TIM4复用后：PD12 PD13 PD14 PD15无法使用
 TIM2复用后：PA15 PB3 PB10 PB11无法使用
 USART3复用后：PD9 PD10 PD11 PD12无法使用
-电机1正反转IO A3高 A4低
-电机2正反转IO C4低 C5高
-电机3正反转IO B0低 B1高
-电机4正反转IO F14高 F15低*/
+电机1正反转IO A3低 A4高
+电机2正反转IO C4高 C5低
+电机3正反转IO B0高 B1低
+电机4正反转IO F14低 F15高*/
 /*平均轮径=58.5125mm
 单周脉冲数=1320
 每脉冲前进=0.0443276mm≈*/ //此数据已被测试为错误数据
@@ -166,9 +167,7 @@ void Encoder2(void)//用TIM8
     
     //配置编码器
     TIM_EncoderInterfaceConfig(TIM8,TIM_EncoderMode_TI12,TIM_ICPolarity_Rising,TIM_ICPolarity_Falling);//其实就是都不反向。若要调节，可在此处调节极性方向
-
     TIM_Cmd(TIM8,ENABLE);
-
 }
 
 void Encoder3(void)//用TIM1
@@ -569,12 +568,12 @@ float Wit_Read_datapacket(void)
 				s_cDataUpdate &= ~GYRO_UPDATE;
 			}
 			if (s_cDataUpdate & ANGLE_UPDATE)
-			{UART1_Printf("%.3f %.3f\r\n",fAngle[2],Init_angle);
+			{
                 if(fAngle[2]<0)
                 {
                     fAngle[2] = 180.0+(180.0-(-fAngle[2]));
                 }
-                
+                // UART1_Printf("%.3f %.3f\r\n",fAngle[2],Init_angle);
 				s_cDataUpdate &= ~ANGLE_UPDATE;
                 
 			}

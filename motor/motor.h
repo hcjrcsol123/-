@@ -9,7 +9,7 @@
 #define pwm_Speed_proportion 2.8169//每50ms355次脉冲，pwm占空电机空载每周期输出脉冲比（需要修改，未调试）
 #define Pwm_Parameter 1000
 #define Pulse_conversion_coefficient 0.1446//0.196373（实测比例）//0.044328（已作废）//距离转换脉冲比例
-#define Angle_conversion_parameters 21.89
+#define Angle_conversion_parameters 27.75//21.89
 #define Centimeter_conversion_parameter_transverse 71.1118//标准62.1118
 #define wheel_D 58.85//轮子直径mm
 
